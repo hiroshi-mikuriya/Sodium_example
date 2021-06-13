@@ -296,13 +296,13 @@ public:
       setPF(fc, q_bw, gain);
       break;
     case LPF:
-   	  setLPF(fc, q_bw);
+      setLPF(fc, q_bw);
       break;
     case HPF:
-  	  setHPF(fc, q_bw);
+      setHPF(fc, q_bw);
       break;
     case BPF:
-   	  setBPF(fc, q_bw);
+      setBPF(fc, q_bw);
       break;
     case LSF:
       setLSF(fc, q_bw, gain);
@@ -311,10 +311,10 @@ public:
       setHSF(fc, q_bw, gain);
       break;
     case NF:
-   	  setNF(fc, q_bw);
+      setNF(fc, q_bw);
       break;
     case APF:
-  	  setAPF(fc, q_bw);
+      setAPF(fc, q_bw);
       break;
     default:
       a1 = 0.0f;
@@ -411,9 +411,10 @@ public:
     b2 = ( A * ((A + 1.0f) + (A - 1.0f) * cos - beta * sin)) * norm;
   }
 
-  void setNF(float fc, float bw)
+  void setNF(float fc, float q)
   {
-    float alpha = bqAlphaBW(fc,bw);
+    //float alpha = bqAlphaBW(fc,bw);
+    float alpha = bqAlphaQ(fc,q);
     float cos = bqCosOmega(fc);
 
     float norm = 1.0f / (1.0f + alpha);

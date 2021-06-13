@@ -4,7 +4,6 @@
 !.gitignore
 !.cproject
 !.project
-!.clang-format
 !*.c
 !*.cpp
 !*.h
@@ -12,9 +11,5 @@
 !*.ioc
 !*.md
 !*.s
-!*flash.icf
-!*.ld
-!*.sh
-!CMakeLists.txt
-CMakeFiles
+!*_FLASH.ld
 

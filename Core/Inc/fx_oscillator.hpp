@@ -1,25 +1,27 @@
-#ifndef FX_PHASER_HPP
-#define FX_PHASER_HPP
+#ifndef FX_OSCILLATOR_HPP
+#define FX_OSCILLATOR_HPP
 
 #include "common.h"
 #include "lib_calc.hpp"
 #include "lib_osc.hpp"
 
-class fx_phaser : public fx_base
+class fx_oscillator : public fx_base
 {
 private:
-  const string name = "PHASER";
-  const uint16_t color = COLOR_R; // 赤
-  const string paramName[20] = {"LEVEL", "RATE", "STAGE"};
-  enum paramName {LEVEL, RATE, STAGE};
+  const string name = "OSCILLATOR";
+  const uint16_t color = COLOR_B; // 青
+  const string paramName[20] = {"LEVEL", "FREQ", "TYPE"};
+  enum paramName {LEVEL, FREQ, TYPE};
   float param[20] = {1, 1, 1};
-  const int16_t paramMax[20] = {100,100,  6};
-  const int16_t paramMin[20] = {  0,  0,  1};
+  const int16_t paramMax[20] = {100,200,  2};
+  const int16_t paramMin[20] = {  0,  2,  0};
   const uint8_t paramNumMax = 3;
 
+  const string typeName[3] = {"SAW","TRI","SIN"};
   signalSw bypass;
+  sawWave saw;
+  sineWave sin;
   triangleWave tri;
-  apf apfx[12];
 
 public:
   virtual void init()
@@ -35,6 +37,7 @@ public:
       if (fxAllData[fxNum][i] < paramMin[i] || fxAllData[fxNum][i] > paramMax[i]) fxParam[i] = paramMin[i];
       else fxParam[i] = fxAllData[fxNum][i];
     }
+
   }
 
   virtual void deinit()
@@ -49,10 +52,10 @@ public:
         fxParamStr[LEVEL] = std::to_string(fxParam[LEVEL]);
         break;
       case 1:
-        fxParamStr[RATE] = std::to_string(fxParam[RATE]);
+        fxParamStr[FREQ] = std::to_string((uint16_t)param[FREQ]);
         break;
       case 2:
-        fxParamStr[STAGE] = std::to_string(fxParam[STAGE] * 2);
+        fxParamStr[TYPE] = typeName[fxParam[TYPE]];
         break;
       default:
         fxParamStr[paramNum] = "";
@@ -67,16 +70,16 @@ public:
     switch(count)
     {
       case 0:
-        param[LEVEL] = logPot(fxParam[LEVEL], -20.0f, 20.0f);  // LEVEL -20～20 dB
+        param[LEVEL] = logPot(fxParam[LEVEL], -50.0f, 0.0f);  // LEVEL -50～0 dB
         break;
       case 1:
-        param[RATE] = 0.02f * (105.0f - (float)fxParam[RATE]); // RATE 周期 2～0.1 秒
+        param[FREQ] = 10.0f * (float)fxParam[FREQ]; // 周波数 20～2000 Hz
+        saw.set(param[FREQ]);
+        tri.set(param[FREQ]);
+        sin.set(param[FREQ]);
         break;
       case 2:
-        param[STAGE] = 0.1f + (float)fxParam[STAGE] * 2.0f; // STAGE 2～12 後で整数へ変換
-        break;
-      case 3:
-        tri.set(1.0f / param[RATE]); // 三角波 周波数設定
+        param[TYPE] = (float)fxParam[TYPE]; // TYPE
         break;
       default:
         break;
@@ -91,17 +94,11 @@ public:
     {
       float fxL = xL[i];
 
-      float lfo = 20.0f * tri.output();    // LFO 0～20 三角波
-      float freq = 200.0f * dbToGain(lfo); // APF周波数 200～2000Hz 指数的変化
+      if (fxParam[TYPE] == 0) fxL = 2.0f * saw.output() - 1.0f;
+      if (fxParam[TYPE] == 1) fxL = 2.0f * tri.output() - 1.0f;
+      if (fxParam[TYPE] == 2) fxL = sin.output();
 
-      for (uint8_t j = 0; j < (uint8_t)param[STAGE]; j++) // 段数分APF繰り返し
-      {
-        apfx[j].set(freq);          // APF周波数設定
-        fxL = apfx[j].process(fxL); // APF実行
-      }
-
-      fxL = 0.7f * (xL[i] + fxL); // 原音ミックス、音量調整
-      fxL = param[LEVEL] * fxL;   // LEVEL
+      fxL = param[LEVEL] * fxL; // LEVEL
 
       xL[i] = bypass.process(xL[i], fxL, fxOn);
     }
@@ -109,4 +106,4 @@ public:
 
 };
 
-#endif // FX_PHASER_HPP
+#endif // FX_OSCILLATOR_HPP

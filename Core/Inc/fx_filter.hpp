@@ -1,25 +1,25 @@
-#ifndef FX_PHASER_HPP
-#define FX_PHASER_HPP
+#ifndef FX_FILTER_HPP
+#define FX_FILTER_HPP
 
 #include "common.h"
 #include "lib_calc.hpp"
-#include "lib_osc.hpp"
+#include "lib_filter.hpp"
 
-class fx_phaser : public fx_base
+class fx_filter : public fx_base
 {
 private:
-  const string name = "PHASER";
-  const uint16_t color = COLOR_R; // 赤
-  const string paramName[20] = {"LEVEL", "RATE", "STAGE"};
-  enum paramName {LEVEL, RATE, STAGE};
+  const string name = "FILTER";
+  const uint16_t color = COLOR_G; // 緑
+  const string paramName[20] = {"LV", "LPF", "HPF"};
+  enum paramName {LEVEL, LPF, HPF};
   float param[20] = {1, 1, 1};
-  const int16_t paramMax[20] = {100,100,  6};
-  const int16_t paramMin[20] = {  0,  0,  1};
+  const int16_t paramMax[20] = { 20, 99,100};
+  const int16_t paramMin[20] = {-20,  1,  1};
   const uint8_t paramNumMax = 3;
 
   signalSw bypass;
-  triangleWave tri;
-  apf apfx[12];
+  lpf lpf1;
+  hpf hpf1;
 
 public:
   virtual void init()
@@ -47,12 +47,13 @@ public:
     {
       case 0:
         fxParamStr[LEVEL] = std::to_string(fxParam[LEVEL]);
+        if (fxParam[LEVEL] > 0) fxParamStr[LEVEL] = "+" + fxParamStr[LEVEL];
         break;
       case 1:
-        fxParamStr[RATE] = std::to_string(fxParam[RATE]);
+        fxParamStr[LPF] = std::to_string(fxParam[LPF] * 100);
         break;
       case 2:
-        fxParamStr[STAGE] = std::to_string(fxParam[STAGE] * 2);
+        fxParamStr[HPF] = std::to_string(fxParam[HPF] * 10);
         break;
       default:
         fxParamStr[paramNum] = "";
@@ -67,16 +68,15 @@ public:
     switch(count)
     {
       case 0:
-        param[LEVEL] = logPot(fxParam[LEVEL], -20.0f, 20.0f);  // LEVEL -20～20 dB
+        param[LEVEL] = dbToGain(fxParam[LEVEL]); // LEVEL -20...+20 dB
         break;
       case 1:
-        param[RATE] = 0.02f * (105.0f - (float)fxParam[RATE]); // RATE 周期 2～0.1 秒
+        param[LPF] = (float)fxParam[LPF] * 100.0f; // 1次LPF カットオフ周波数 100...9900 Hz
+        lpf1.set(param[LPF]);
         break;
       case 2:
-        param[STAGE] = 0.1f + (float)fxParam[STAGE] * 2.0f; // STAGE 2～12 後で整数へ変換
-        break;
-      case 3:
-        tri.set(1.0f / param[RATE]); // 三角波 周波数設定
+        param[HPF] = (float)fxParam[HPF] * 10.0f; // 1次HPF カットオフ周波数 10...1000 Hz
+        hpf1.set(param[HPF]);
         break;
       default:
         break;
@@ -90,23 +90,13 @@ public:
     for (uint16_t i = 0; i < BLOCK_SIZE; i++)
     {
       float fxL = xL[i];
-
-      float lfo = 20.0f * tri.output();    // LFO 0～20 三角波
-      float freq = 200.0f * dbToGain(lfo); // APF周波数 200～2000Hz 指数的変化
-
-      for (uint8_t j = 0; j < (uint8_t)param[STAGE]; j++) // 段数分APF繰り返し
-      {
-        apfx[j].set(freq);          // APF周波数設定
-        fxL = apfx[j].process(fxL); // APF実行
-      }
-
-      fxL = 0.7f * (xL[i] + fxL); // 原音ミックス、音量調整
-      fxL = param[LEVEL] * fxL;   // LEVEL
-
+      fxL = lpf1.process(fxL); // 1次LPF
+      fxL = hpf1.process(fxL); // 1次HPF
+      fxL = param[LEVEL] * fxL; // LEVEL
       xL[i] = bypass.process(xL[i], fxL, fxOn);
     }
   }
 
 };
 
-#endif // FX_PHASER_HPP
+#endif // FX_FILTER_HPP
